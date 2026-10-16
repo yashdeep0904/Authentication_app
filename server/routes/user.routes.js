@@ -1,7 +1,7 @@
 import express from "express";
 import { finalizeAccount, register, verifyRegistrationOtp } from "../controllers/user.controller.js";
 import login from "../controllers/login.controller.js";
-import forgetPassword from "../controllers/forgetpassword.controller.js";
+import forgetPassword from "../controllers/forgetPassword.controller.js";
 import verifyOtp from "../controllers/verifyOtp.controller.js";
 import getOtpTime from "../controllers/getOtpTime.controller.js";
 import updatePassword from "../controllers/passwordUpdate.controller.js";
