@@ -47,7 +47,7 @@ const Login = () => {
             }
             if (result?.status) {
                 toast.success(result?.message);
-                navigate('/student/homepage', { replace: true });
+                navigate('/dashboard', { replace: true });
             }
         } catch (error) {
             toast.error(error.message);

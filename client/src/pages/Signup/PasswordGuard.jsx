@@ -23,7 +23,7 @@ const PasswordGuard = () => {
 
     // 2. Redirect to dashboard if they hit the back button after logging in
     if (isLoggedIn) {
-        return <Navigate to="/student/homepage" replace />;
+        return <Navigate to="/dashboard" replace />;
     }
 
     // 3. Normal Guard for non-logged-in users completing registration

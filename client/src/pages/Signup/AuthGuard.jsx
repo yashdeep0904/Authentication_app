@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import apis, { secureFetch } from '../../utils/apis'; 
 
-const StudentGuard = () => {
+const AuthGuard = () => {
     const [isAuth, setIsAuth] = useState(null);
 
     const checkStudentAuth = async () => {
@@ -50,4 +50,4 @@ const StudentGuard = () => {
     return isAuth ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
-export default StudentGuard;
+export default AuthGuard;

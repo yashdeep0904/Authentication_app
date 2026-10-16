@@ -99,7 +99,7 @@ const Registration = () => {
 
             <div className='mt-6 text-sm text-slate-600'>
                 <span>Already have an account? </span>
-                <Link to={'/student/login'} className='text-emerald-600 font-bold hover:text-emerald-700'>Login</Link>
+                <Link to={'/login'} className='text-emerald-600 font-bold hover:text-emerald-700'>Login</Link>
             </div>
         </form>
     </div>

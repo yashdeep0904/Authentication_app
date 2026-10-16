@@ -7,11 +7,11 @@ import Login from "./pages/Signup/Login"
 import ForgotPassword from "./pages/Signup/ForgotPassword"
 import SetPassword from "./pages/Signup/SetPassword"
 import VerifyRegistrationOtp from "./pages/Signup/VerifyRegistrationOtp"
-import StudentHomePage from "./pages/Student_Portal/Home"
 import Super from "./pages/Signup/Super"
 import PasswordGuard from "./pages/Signup/PasswordGuard"
-import StudentGuard from "./pages/Signup/StudentGuard"
-import ActiveSessions from "./pages/Student_Portal/ActiveSessions"
+import Dashboard from "./pages/Home/Dashboard"
+import AuthGuard from "./pages/Signup/AuthGuard"
+
 
 function App() {
   
@@ -41,9 +41,9 @@ function App() {
           </Route>
 
           {/* Phase 3: Logged-in Student Portal */}
-          <Route element={<StudentGuard />}>
-            <Route path="/student/homepage" element={<StudentHomePage />} />
-            <Route path="/student/sessions" element={<ActiveSessions />} />
+          <Route element={<AuthGuard />}>
+            <Route path="/dashboard" element={<Dashboard />} />
+            
           </Route>
 
           {/* 4. CATCH-ALL */}

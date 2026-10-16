@@ -34,7 +34,7 @@ const PublicGuard = () => {
 
     if (isLoggedIn === null) return null; 
 
-    return isLoggedIn ? <Navigate to="/student/homepage" replace /> : <Outlet />;
+    return isLoggedIn ? <Navigate to="/dashboard" replace /> : <Outlet />;
 };
 
 export default PublicGuard;
