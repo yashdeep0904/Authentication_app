@@ -31,30 +31,39 @@ const Login = () => {
         }
     }, [location, navigate]);
 
-    const submitHandler = async (e) => {
-        e.preventDefault();
-        setIsLoading(true);
+   // ... existing imports ...
 
-        try {
-            const response = await secureFetch(apis().loginUser, {
-                method: "POST",
-                body: JSON.stringify({ email, password }),
-            });
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result?.message || "Login failed");
-            }
-            if (result?.status) {
-                toast.success(result?.message);
-                navigate('/dashboard', { replace: true });
-            }
-        } catch (error) {
-            toast.error(error.message);
-        } finally {
-            setIsLoading(false);
+   const submitHandler = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+        const response = await secureFetch(apis().loginUser, {
+            method: "POST",
+            body: JSON.stringify({ email, password }),
+        });
+        const result = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(result?.message || "Login failed");
         }
+        if (result?.status) {
+            // CRITICAL FIX: Save token and user to localStorage so it survives redirects
+            if (result.accessToken) {
+                localStorage.setItem('accessToken', result.accessToken);
+                localStorage.setItem('user', JSON.stringify({ email: result.email, role: result.role }));
+            }
+
+            toast.success(result?.message);
+            navigate('/dashboard', { replace: true });
+        }
+    } catch (error) {
+        toast.error(error.message);
+    } finally {
+        setIsLoading(false);
     }
+}
+
 
     const handleGoogleLogin = (e) => {
         e.preventDefault();

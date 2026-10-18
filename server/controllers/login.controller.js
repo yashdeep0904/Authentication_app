@@ -2,20 +2,17 @@ import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
 import bcrypt from 'bcrypt';
 
-// CRITICAL FIX: Cross-Domain Cookie Configuration for Render/Vercel
 const cookieOptions = {
     httpOnly: true,
-    secure: true,      // MUST be true to allow cross-origin cookies on HTTPS
-    sameSite: 'none'   // MUST be 'none' to allow the frontend domain to read the backend cookie
+    secure: true,      
+    sameSite: 'none'   
 };
 
-// Exported as a named function to ensure standard importing across your router
 export const login = async (req, res, next) => {
     const { email, password } = req.body;
 
     try {
         const formatedEmail = email.toLowerCase();
-
         const findUser = await User.findOne({ email: formatedEmail });
         
         if (!findUser || !findUser.isVerified || !findUser.password) {
@@ -29,33 +26,30 @@ export const login = async (req, res, next) => {
             throw error;
         }
 
-       // Create Tokens
         const accessToken = jwt.sign({ userId: findUser._id }, process.env.ACCESS_TOKEN_KEY, { expiresIn: "15m" });
         const refreshToken = jwt.sign({ userId: findUser._id }, process.env.REFRESH_TOKEN_KEY, { expiresIn: "7d" });
 
-        // CAPTURE DEVICE DATA
         const deviceInfo = req.headers['user-agent'] || "Unknown Device";
         const ipAddress = req.ip || req.connection.remoteAddress || "Unknown IP";
 
-        // --- ADD THIS SAFETY CHECK ---
         if (!findUser.refreshTokens) {
             findUser.refreshTokens = [];
         }
 
-        // Save session data to DB
-        findUser.refreshTokens.push({
-            token: refreshToken,
-            deviceInfo: deviceInfo,
-            ipAddress: ipAddress
-        });
+        findUser.refreshTokens.push({ token: refreshToken, deviceInfo, ipAddress });
         await findUser.save();
         
-       // Send BOTH tokens as Secure Cross-Origin Cookies
-       res.cookie('refresh_token', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 }); // 7 days
-       res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 }); // 15 minutes
+       res.cookie('refresh_token', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 }); 
+       res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 }); 
 
-       // Send response payload
-       res.status(200).json({ message: "Login successful", status: true, role: findUser.role, email: findUser.email });
+       // CRITICAL FIX: Pass accessToken in the JSON body payload
+       res.status(200).json({ 
+           message: "Login successful", 
+           status: true, 
+           accessToken: accessToken, 
+           role: findUser.role, 
+           email: findUser.email 
+       });
 
     } catch (error) {
         next(error);

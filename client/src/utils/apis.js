@@ -1,23 +1,23 @@
-// Automatically resolves to your live backend in production, or falls back to localhost in development
 const API_DOMAIN = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 const USER_BASE = `${API_DOMAIN}/api/user`;
 const ADMIN_BASE = `${API_DOMAIN}/api/admin`;
 
-// 1. Export the secure fetch wrapper
-// It now takes a 'base' argument to decide if it's hitting user or admin routes
+// CRITICAL FIX: Pull token and attach to headers dynamically
 export const secureFetch = async (endpoint, options = {}, base = USER_BASE) => {
+    const token = localStorage.getItem('accessToken'); 
+    
     return fetch(`${base}${endpoint}`, {
         ...options,
-        credentials: 'include', // Allows HTTP-Only cookies
+        credentials: 'include', 
         headers: {
             'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}), // Inject header
             ...options.headers
         }
     });
 };
 
-// 2. Export the endpoints
 const apis = () => {
     return {
         registerUser: '/register',
