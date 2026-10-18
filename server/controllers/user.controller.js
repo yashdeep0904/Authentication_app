@@ -1,19 +1,18 @@
-import {User} from '../models/user.js'
+import { User } from '../models/user.js';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import sendMail from '../utils/nodeMail.js';
 import redisClient from '../utils/redisClient.js';
 
-
+// CRITICAL FIX: Cross-Domain Cookie Configuration for Render/Vercel
 const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // true if on HTTPS
-    sameSite: 'strict',
+    secure: true,       // MUST be true to allow cross-origin cookies on HTTPS
+    sameSite: 'none',   // MUST be 'none' to allow the frontend domain to read the backend cookie
     maxAge: 15 * 60 * 1000 // 15 minutes
 };
 
 // STEP 1: Initiate Registration (Creates unverified shell & sends OTP)
-
 export const register = async (req, res, next) => {
     const { email } = req.body;
  
@@ -43,31 +42,28 @@ export const register = async (req, res, next) => {
             sendTime: sendTime // Safely passing the defined variable here
         };
        
-
         // REDIS MAGIC: Store OTP in RAM with a strict 180-second (3 minute) Time-To-Live
         await redisClient.setEx(`otp_session:${registrationToken}`, 180, JSON.stringify(sessionData));
 
         await sendMail(formatedEmail, 'Your Registration OTP', `Your security code is ${otp}. It expires in 3 minutes.`);
-        console.log("Otp : ",otp);
+        console.log("Otp : ", otp);
 
         // Issue the registration_session cookie (Used by Super Guard)
-        res.cookie('registration_session', registrationToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+        res.cookie('registration_session', registrationToken, { ...cookieOptions });
        
         res.status(200).json({ message: 'OTP sent successfully to your email.', status: true });
 
     } catch (error) {
         next(error);
     } 
-    
 };
 
 // STEP 2: Verify Registration OTP
 export const verifyRegistrationOtp = async (req, res, next) => {
-    const { email , otp } = req.body; 
-    const token = req.cookies.registration_session; // <-- Read from cookie!
+    const { email, otp } = req.body; 
+    const token = req.cookies.registration_session;
 
     try {
-
         if (!token) return res.status(401).json({ status: false, message: "Session expired." });
 
         // FETCH FROM REDIS
@@ -90,29 +86,27 @@ export const verifyRegistrationOtp = async (req, res, next) => {
         const setupToken = jwt.sign({ email: redisData.email }, process.env.JWT_SECRET, { expiresIn: '15m' });
 
         // Swap the cookies: Clear the registration session, start the password setup session
-        res.clearCookie('registration_session');
-        res.cookie('setup_session', setupToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+        res.clearCookie('registration_session', { httpOnly: true, secure: true, sameSite: 'none' });
+        res.cookie('setup_session', setupToken, { ...cookieOptions });
 
         res.json({ status: true, message: "OTP verified." });
 
     } catch (error) {
-       next(error)
+       next(error);
     }
 };
 
 // STEP 3: Finalize Account (Set Password)
 export const finalizeAccount = async (req, res, next) => {
     const { password } = req.body;
-    const token = req.cookies.setup_session; // <-- Read from cookie!
+    const token = req.cookies.setup_session;
 
     try {
-
         if (!token) return res.status(401).json({ status: false, message: "Session expired." });
 
         // Decode the setup token issued in Step 2
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const email = decoded.email;
-
 
         // Hash the new password
         const salt = await bcrypt.genSalt(10);
@@ -131,38 +125,38 @@ export const finalizeAccount = async (req, res, next) => {
         } else {
             user.password = hashedPassword;
             user.isVerified = true;
-            if(!user.refreshTokens) user.refreshTokens = []; // Phase 3 safety check
+            if (!user.refreshTokens) user.refreshTokens = []; // Phase 3 safety check
         }    
         await user.save();
 
         // Clear the setup cookie so it can't be reused
-        res.clearCookie('setup_session');
+        res.clearCookie('setup_session', { httpOnly: true, secure: true, sameSite: 'none' });
         res.json({ status: true, message: "Account created successfully." });
 
     } catch (error) {
-        next(error)
+        next(error);
     }
 };
 
-
-// 1. Check Auth Logic (Handshake for StudentGuard)
+// 1. Check Auth Logic (Handshake for Guards)
 export const checkAuth = async (req, res) => {
     try {
         // req.user was populated by verifyToken middleware
-        const user = await User.findById(req.user.userId).select('email role');
+        const user = await User.findById(req.user.userId).select('email role name');
         if (!user) return res.status(404).json({ status: false, message: "User not found" });
 
         res.status(200).json({ 
             status: true, 
             email: user.email, 
-            role: user.role 
+            role: user.role,
+            name: user.name || user.email.split('@')[0]
         });
     } catch (error) {
         res.status(500).json({ status: false, message: "Server Error" });
     }
 };
 
-// 2. Get Active Sessions (Phase 3 Feature)
+// 2. Get Active Sessions
 export const getSessions = async (req, res) => {
     try {
         const user = await User.findById(req.user.userId);
@@ -184,4 +178,3 @@ export const revokeSession = async (req, res) => {
         res.status(500).json({ status: false, message: "Failed to revoke session" });
     }
 };
-

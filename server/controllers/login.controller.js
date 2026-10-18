@@ -1,40 +1,41 @@
 import jwt from "jsonwebtoken";
 import { User } from "../models/user.js";
-import bcrypt from 'bcrypt'
+import bcrypt from 'bcrypt';
 
+// CRITICAL FIX: Cross-Domain Cookie Configuration for Render/Vercel
 const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict'
+    secure: true,      // MUST be true to allow cross-origin cookies on HTTPS
+    sameSite: 'none'   // MUST be 'none' to allow the frontend domain to read the backend cookie
 };
 
-const login = async(req,res,next)=>{
-    const {email,password} = req.body
+// Exported as a named function to ensure standard importing across your router
+export const login = async (req, res, next) => {
+    const { email, password } = req.body;
 
     try {
-        
         const formatedEmail = email.toLowerCase();
 
-        const findUser = await User.findOne({email:formatedEmail})
+        const findUser = await User.findOne({ email: formatedEmail });
         
         if (!findUser || !findUser.isVerified || !findUser.password) {
             return res.status(401).json({ status: false, message: 'Invalid credentials or account verification incomplete.' });
         }
 
-        const isPassMatch = bcrypt.compare(password,findUser.password)
-        if(!isPassMatch){
-            const error = new Error('Password is incorrect')
-            error.statusCode = 400
-            throw error
+        const isPassMatch = await bcrypt.compare(password, findUser.password);
+        if (!isPassMatch) {
+            const error = new Error('Password is incorrect');
+            error.statusCode = 400;
+            throw error;
         }
 
        // Create Tokens
         const accessToken = jwt.sign({ userId: findUser._id }, process.env.ACCESS_TOKEN_KEY, { expiresIn: "15m" });
-        const refreshToken = jwt.sign({ userId: findUser._id }, process.env.REFRESH_TOKEN_KEY,{ expiresIn: "7d" });
+        const refreshToken = jwt.sign({ userId: findUser._id }, process.env.REFRESH_TOKEN_KEY, { expiresIn: "7d" });
 
         // CAPTURE DEVICE DATA
         const deviceInfo = req.headers['user-agent'] || "Unknown Device";
-        const ipAddress = req.ip || req.connection.remoteAddress;
+        const ipAddress = req.ip || req.connection.remoteAddress || "Unknown IP";
 
         // --- ADD THIS SAFETY CHECK ---
         if (!findUser.refreshTokens) {
@@ -49,16 +50,14 @@ const login = async(req,res,next)=>{
         });
         await findUser.save();
         
-       // Send BOTH tokens as Secure Cookies
-       res.cookie('refresh_token', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 });
-       res.cookie('access_token', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 });
+       // Send BOTH tokens as Secure Cross-Origin Cookies
+       res.cookie('refresh_token', refreshToken, { ...cookieOptions, maxAge: 7 * 24 * 60 * 60 * 1000 }); // 7 days
+       res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 15 * 60 * 1000 }); // 15 minutes
 
-        // Send Access token to frontend memory (or also as a cookie, depending on your architecture)
-        res.status(200).json({ message: "Login successful", status: true });
+       // Send response payload
+       res.status(200).json({ message: "Login successful", status: true, role: findUser.role, email: findUser.email });
 
     } catch (error) {
-        next(error)
+        next(error);
     }
-}
-
-export default login
+};
